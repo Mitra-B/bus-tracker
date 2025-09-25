@@ -9,8 +9,8 @@ class BusTrackerMap {
         this.updateInterval = null;
         this.currentFilter = 'all'; // 'all', 'punbus', 'chalobus'
         this.routeLayer = null; // polyline for selected route
-        this.routeStopMarkers = []; // markers for selected route stops
-        this.osrmCache = new Map(); // cache of routeId -> latlngs
+        this.routeStopMarkers = []; // store route stop markers for cleanup
+        this.isRouteReversed = false; // track if current route is reversed
         // Tracking state
         this.trackedBusId = null; // which bus is being tracked
         this.trackLine = null;    // polyline for tracked bus trail
@@ -29,8 +29,8 @@ class BusTrackerMap {
     }
 
     initMap() {
-        // Initialize Leaflet map centered on a default location (you can change this)
-        this.map = L.map('map').setView([28.6139, 77.2090], 12); // Delhi coordinates
+        // Initialize Leaflet map centered on Punjab, India
+        this.map = L.map('map').setView([30.7333, 76.7794], 10); // Chandigarh, Punjab coordinates
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -74,11 +74,13 @@ class BusTrackerMap {
         const routeSelect = document.getElementById('routeSelect');
         const viewBtn = document.getElementById('viewRouteOnMapBtn');
         const viewLink = document.getElementById('viewOnMapLink');
+        const reverseBtn = document.getElementById('reverseRouteBtn');
+        
         if (routeSelect) {
             routeSelect.addEventListener('change', (e) => {
                 const routeId = e.target.value;
+                this.isRouteReversed = false; // reset reverse state
                 this.renderStops(routeId);
-                this.viewRouteOnMap(routeId);
             });
         }
         if (viewBtn) {
@@ -94,59 +96,75 @@ class BusTrackerMap {
                 this.viewRouteOnMap(routeId);
             });
         }
+        if (reverseBtn) {
+            reverseBtn.addEventListener('click', () => {
+                const routeId = routeSelect.value;
+                this.toggleRouteDirection(routeId);
+            });
+        }
     }
 
     loadSampleData() {
-        // Sample routes data with stops (Delhi area coordinates)
+        // Sample routes data with stops (Punjab area coordinates)
         const sampleRoutes = [
             { 
                 id: 'R001', 
-                name: 'Route 1: Central Station - Airport', 
+                name: 'Route 1: Chandigarh - Ludhiana', 
                 color: '#e74c3c', 
                 stops: [
-                    { name: 'New Delhi Railway Station', lat: 28.6426, lng: 77.2197, strong: true },
-                    { name: 'Connaught Place', lat: 28.6315, lng: 77.2167 },
-                    { name: 'India Gate', lat: 28.6129, lng: 77.2295 },
-                    { name: 'Ashoka Road', lat: 28.6156, lng: 77.2080 },
-                    { name: 'Dhaula Kuan', lat: 28.5921, lng: 77.1655 },
-                    { name: 'Mahipalpur', lat: 28.5450, lng: 77.1235 },
-                    { name: 'IGI Airport T3', lat: 28.5562, lng: 77.1000, strong: true }
+                    { name: 'Chandigarh Bus Stand', lat: 30.7333, lng: 76.7794, strong: true },
+                    { name: 'Sector 17', lat: 30.7410, lng: 76.7820 },
+                    { name: 'Panchkula', lat: 30.6942, lng: 76.8606 },
+                    { name: 'Ambala Cantt', lat: 30.3752, lng: 76.7821 },
+                    { name: 'Rajpura', lat: 30.4844, lng: 76.5944 },
+                    { name: 'Sirhind', lat: 30.6431, lng: 76.3828 },
+                    { name: 'Khanna', lat: 30.7058, lng: 76.2219 },
+                    { name: 'Doraha', lat: 30.7975, lng: 76.0219 },
+                    { name: 'Ludhiana Bus Stand', lat: 30.9010, lng: 75.8573, strong: true }
                 ] 
             },
             { 
                 id: 'R002', 
-                name: 'Route 2: Mall - University', 
+                name: 'Route 2: Amritsar - Jalandhar', 
                 color: '#3498db', 
                 stops: [
-                    { name: 'Select Citywalk Mall', lat: 28.5286, lng: 77.2193, strong: true },
-                    { name: 'Malviya Nagar', lat: 28.5362, lng: 77.2100 },
-                    { name: 'Hauz Khas', lat: 28.5494, lng: 77.2010 },
-                    { name: 'AIIMS', lat: 28.5672, lng: 77.2100 },
-                    { name: 'IIT Delhi', lat: 28.5450, lng: 77.1926, strong: true }
+                    { name: 'Golden Temple Complex', lat: 31.6200, lng: 74.8765, strong: true },
+                    { name: 'Amritsar Railway Station', lat: 31.6340, lng: 74.8723 },
+                    { name: 'Tarn Taran', lat: 31.4515, lng: 74.9289 },
+                    { name: 'Goindwal Sahib', lat: 31.3204, lng: 75.1608 },
+                    { name: 'Khadur Sahib', lat: 31.2779, lng: 75.2708 },
+                    { name: 'Kapurthala', lat: 31.3800, lng: 75.3800 },
+                    { name: 'Sultanpur Lodhi', lat: 31.2254, lng: 75.2047 },
+                    { name: 'Phillaur', lat: 31.0186, lng: 75.7781 },
+                    { name: 'Jalandhar City', lat: 31.3260, lng: 75.5762, strong: true }
                 ] 
             },
             { 
                 id: 'R003', 
-                name: 'Route 3: Hospital - Tech Park', 
+                name: 'Route 3: Patiala - Bathinda', 
                 color: '#2ecc71', 
                 stops: [
-                    { name: 'Safdarjung Hospital', lat: 28.5675, lng: 77.2107, strong: true },
-                    { name: 'Green Park', lat: 28.5580, lng: 77.2050 },
-                    { name: 'Munirka', lat: 28.5540, lng: 77.1747 },
-                    { name: 'Vasant Vihar', lat: 28.5627, lng: 77.1570 },
-                    { name: 'DLF Cyber City', lat: 28.4946, lng: 77.0910, strong: true }
+                    { name: 'Patiala Bus Stand', lat: 30.3398, lng: 76.3869, strong: true },
+                    { name: 'Rajpura Junction', lat: 30.4844, lng: 76.5944 },
+                    { name: 'Samana', lat: 30.1439, lng: 76.1928 },
+                    { name: 'Patran', lat: 30.0333, lng: 76.2500 },
+                    { name: 'Sunam', lat: 30.1281, lng: 75.7997 },
+                    { name: 'Dirba', lat: 30.0708, lng: 75.6042 },
+                    { name: 'Sangrur', lat: 30.2458, lng: 75.8421 },
+                    { name: 'Lehra Gaga', lat: 30.1500, lng: 75.5667 },
+                    { name: 'Bathinda Junction', lat: 30.2110, lng: 74.9455, strong: true }
                 ] 
             }
         ];
 
-        // Sample buses data - only PUNBUS buses
+        // Sample buses data - PUNBUS buses in Punjab
         const sampleBuses = [
             {
                 id: 'BUS001',
                 number: 'PN-101',
                 route: 'R001',
-                lat: 28.6139,
-                lng: 77.2090,
+                lat: 30.7333,
+                lng: 76.7794,
                 speed: 25,
                 status: 'online',
                 passengers: 15,
@@ -158,8 +176,8 @@ class BusTrackerMap {
                 id: 'BUS002',
                 number: 'PN-201',
                 route: 'R002',
-                lat: 28.6050,
-                lng: 77.2000,
+                lat: 31.6200,
+                lng: 74.8765,
                 speed: 20,
                 status: 'online',
                 passengers: 8,
@@ -171,8 +189,8 @@ class BusTrackerMap {
                 id: 'BUS003',
                 number: 'PN-301',
                 route: 'R003',
-                lat: 28.6250,
-                lng: 77.1950,
+                lat: 30.3398,
+                lng: 76.3869,
                 speed: 35,
                 status: 'online',
                 passengers: 30,
@@ -187,20 +205,31 @@ class BusTrackerMap {
             this.routes.set(route.id, route);
         });
 
-        // Load buses
+        // Load buses and initialize along-route paths
         sampleBuses.forEach(bus => {
+            const route = this.routes.get(bus.route);
+            if (route && Array.isArray(route.stops) && route.stops.length > 1) {
+                // Build path from route stops
+                bus.path = route.stops.map(s => ({ lat: s.lat, lng: s.lng }));
+                bus.segmentIndex = 0; // between stop 0 and 1
+                bus.t = 0; // interpolation progress 0..1 along the segment
+                // Speed factor per tick (update interval ~5s). Tune for demo.
+                bus.speedFactor = 0.35 + Math.random() * 0.25; // 0.35..0.6 per tick
+                // Start at the first stop
+                bus.lat = bus.path[0].lat;
+                bus.lng = bus.path[0].lng;
+            }
             this.buses.set(bus.id, bus);
             this.addBusMarker(bus);
         });
 
         this.updateUI();
         this.updateBottomNavigation();
-        // Populate route UI and render default route stops and path
+        // Populate route UI and render default route stops
         this.populateRouteSelect();
         const firstRoute = sampleRoutes[0]?.id;
         if (firstRoute) {
-            const selectEl = document.getElementById('routeSelect');
-            if (selectEl) selectEl.value = firstRoute;
+            document.getElementById('routeSelect').value = firstRoute;
             this.renderStops(firstRoute);
             this.viewRouteOnMap(firstRoute);
         }
@@ -418,153 +447,48 @@ class BusTrackerMap {
         }
     }
 
-    // ---------------- Route UI helpers ----------------
-    populateRouteSelect() {
-        const select = document.getElementById('routeSelect');
-        if (!select) return;
-        select.innerHTML = '';
-        this.routes.forEach((route, id) => {
-            const opt = document.createElement('option');
-            opt.value = id;
-            opt.textContent = route.name;
-            select.appendChild(opt);
-        });
-    }
-
-    renderStops(routeId) {
-        const panel = document.getElementById('stopList');
-        if (!panel) return;
-        panel.innerHTML = '';
-        const route = this.routes.get(routeId);
-        if (!route || !route.stops) return;
-        route.stops.forEach((stop) => {
-            const item = document.createElement('div');
-            item.className = 'stop-item';
-            item.innerHTML = `
-                <div class="stop-dot" style="box-shadow: 0 0 0 1px ${route.color}"></div>
-                <div class="stop-line" style="background:${route.color}"></div>
-                <div class="stop-name ${stop.strong ? 'strong' : ''}">${stop.name}</div>
-            `;
-            item.addEventListener('click', () => this.centerOnStop(stop));
-            panel.appendChild(item);
-        });
-    }
-
-    centerOnStop(stop) {
-        if (!stop) return;
-        this.map.setView([stop.lat, stop.lng], 15);
-    }
-
-    async viewRouteOnMap(routeId) {
-        const route = this.routes.get(routeId);
-        if (!route || !route.stops || route.stops.length < 2) return;
-        await this.drawRoutePolyline(route);
-        const latlngs = route.stops.map(s => [s.lat, s.lng]);
-        const bounds = L.latLngBounds(latlngs);
-        this.map.fitBounds(bounds, { padding: [20, 20] });
-    }
-
-    async drawRoutePolyline(route) {
-        // Use cached geometry if available
-        if (route.cachedLine && route.cachedLine.length) {
-            this._setRouteLayer(route.cachedLine, route.color);
-            return;
-        }
-
-        const latlngs = route.stops.map(s => [s.lat, s.lng]);
-        // Try to build route by chaining OSRM calls between consecutive stops
-        let combined = [];
-        try {
-            for (let i = 0; i < latlngs.length - 1; i++) {
-                const a = latlngs[i];
-                const b = latlngs[i + 1];
-                const seg = await this._osrmRouteBetween(a, b);
-                if (seg && seg.length) {
-                    if (combined.length) {
-                        // avoid duplicating the connecting point
-                        combined = combined.concat(seg.slice(1));
-                    } else {
-                        combined = seg.slice();
-                    }
-                } else {
-                    // fallback straight line for that segment
-                    if (combined.length) {
-                        combined.push(b);
-                    } else {
-                        combined.push(a, b);
-                    }
-                }
-                // small delay to avoid OSRM rate-limiting
-                await this._sleep(180);
-            }
-        } catch (e) {
-            console.warn('Pairwise OSRM failed, fallback to straight segments', e);
-            combined = latlngs;
-        }
-
-        // Cache and draw
-        route.cachedLine = combined && combined.length ? combined : latlngs;
-        this._setRouteLayer(route.cachedLine, route.color);
-    }
-
-    async _osrmRouteBetween(a, b) {
-        // a and b are [lat, lng]
-        const key = `${a[0].toFixed(5)},${a[1].toFixed(5)}->${b[0].toFixed(5)},${b[1].toFixed(5)}`;
-        if (this.osrmCache.has(key)) return this.osrmCache.get(key);
-        const url = `https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson&steps=false&alternatives=false`;
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const data = await res.json();
-        const coords = data?.routes?.[0]?.geometry?.coordinates;
-        if (!coords || !coords.length) return null;
-        const line = coords.map(([lng, lat]) => [lat, lng]);
-        this.osrmCache.set(key, line);
-        return line;
-    }
-
-    _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-    _setRouteLayer(latlngs, color) {
-        if (this.routeLayer) {
-            this.map.removeLayer(this.routeLayer);
-        }
-        // clear previous stop markers
-        if (this.routeStopMarkers && this.routeStopMarkers.length) {
-            this.routeStopMarkers.forEach(m => this.map.removeLayer(m));
-            this.routeStopMarkers = [];
-        }
-        this.routeLayer = L.polyline(latlngs, { color, weight: 5, opacity: 0.9, lineJoin: 'round', lineCap: 'round', className: 'route-polyline' }).addTo(this.map);
-        // add tiny markers for stops
-        latlngs.forEach(ll => {
-            const m = L.circleMarker(ll, { radius: 4, color: '#fff', fillColor: color, fillOpacity: 1, weight: 2 });
-            m.addTo(this.map);
-            this.routeStopMarkers.push(m);
-        });
-    }
-
     simulateBusMovement() {
         this.buses.forEach((bus, id) => {
-            if (bus.status === 'online') {
-                // Simulate small random movement
-                const latChange = (Math.random() - 0.5) * 0.01;
-                const lngChange = (Math.random() - 0.5) * 0.01;
+            if (bus.status !== 'online') return;
 
-                bus.lat += latChange;
-                bus.lng += lngChange;
-                bus.speed = Math.max(0, Math.min(60, bus.speed + (Math.random() - 0.5) * 10));
-                bus.passengers = Math.max(0, Math.min(bus.capacity, bus.passengers + Math.floor((Math.random() - 0.5) * 5)));
+            if (bus.path && bus.path.length > 1) {
+                const seg = bus.segmentIndex ?? 0;
+                const a = bus.path[seg];
+                const b = bus.path[seg + 1];
+                if (a && b) {
+                    // advance progress
+                    const speed = bus.speedFactor || 0.5; // fallback
+                    bus.t = (bus.t ?? 0) + speed; // per tick increment
 
-                // Update last update time randomly for some buses
-                if (Math.random() < 0.3) {
-                    bus.lastUpdate = new Date();
+                    // move to next segment when completed
+                    while (bus.t >= 1) {
+                        bus.t -= 1;
+                        bus.segmentIndex = (bus.segmentIndex + 1) % (bus.path.length - 1);
+                    }
+
+                    const t = bus.t;
+                    const lat = a.lat + (b.lat - a.lat) * t;
+                    const lng = a.lng + (b.lng - a.lng) * t;
+                    bus.lat = lat;
+                    bus.lng = lng;
+
+                    // derive demo speed km/h roughly from distance per tick
+                    const dLat = b.lat - a.lat;
+                    const dLng = b.lng - a.lng;
+                    const segLen = Math.sqrt(dLat * dLat + dLng * dLng);
+                    bus.speed = Math.round(segLen * 111 * 60); // crude demo conversion
                 }
+            }
 
-                // Update marker position
-                const marker = this.markers.get(id);
-                if (marker) {
-                    marker.setLatLng([bus.lat, bus.lng]);
-                    marker.setPopupContent(this.createBusPopup(bus));
-                }
+            // demo passenger fluctuation
+            bus.passengers = Math.max(0, Math.min(bus.capacity, (bus.passengers ?? 0) + Math.floor((Math.random() - 0.5) * 3)));
+            bus.lastUpdate = new Date();
+
+            // Update marker position
+            const marker = this.markers.get(id);
+            if (marker) {
+                marker.setLatLng([bus.lat, bus.lng]);
+                marker.setPopupContent(this.createBusPopup(bus));
             }
 
             // Update tracking trail if this bus is being tracked
@@ -675,14 +599,34 @@ class BusTrackerMap {
         list.innerHTML = '';
         if (!route || !route.stops) return;
 
-        route.stops.forEach((s, idx) => {
+        const stops = this.isRouteReversed ? [...route.stops].reverse() : route.stops;
+        let cumulativeDistance = 0;
+        let cumulativeTime = 0;
+
+        stops.forEach((s, idx) => {
+            // Calculate distance and ETA from previous stop
+            let distance = 0;
+            let eta = 0;
+            
+            if (idx > 0) {
+                const prevStop = stops[idx - 1];
+                distance = this.calculateDistance(prevStop.lat, prevStop.lng, s.lat, s.lng);
+                cumulativeDistance += distance;
+                // Assume average speed of 40 km/h for ETA calculation
+                const segmentTime = (distance / 40) * 60; // minutes
+                cumulativeTime += segmentTime;
+                eta = Math.round(cumulativeTime);
+            }
+
             const item = document.createElement('div');
             item.className = 'stop-item';
             item.innerHTML = `
-                <div class="stop-index">${idx + 1}</div>
+                <div class="stop-dot">•</div>
                 <div class="stop-info">
                     <div class="stop-name" ${s.strong ? 'style="font-weight:600"' : ''}>${s.name}</div>
-                    <div class="stop-coords">${s.lat.toFixed(4)}, ${s.lng.toFixed(4)}</div>
+                    <div class="stop-details">
+                        ${idx === 0 ? 'Starting Point' : `${distance.toFixed(1)} km • ETA: ${eta} min`}
+                    </div>
                 </div>
             `;
             list.appendChild(item);
@@ -693,23 +637,126 @@ class BusTrackerMap {
         const route = this.routes.get(routeId);
         if (!route || !Array.isArray(route.stops) || route.stops.length < 2) return;
 
-        // Remove previous route layer if exists
+        // Remove previous route layer and markers if exists
         if (this.routeLayer) {
             this.map.removeLayer(this.routeLayer);
             this.routeLayer = null;
         }
+        this.routeStopMarkers.forEach(marker => this.map.removeLayer(marker));
+        this.routeStopMarkers = [];
 
-        const latlngs = route.stops.map(s => [s.lat, s.lng]);
-        // Draw a black navigating line across route stops
+        const stops = this.isRouteReversed ? [...route.stops].reverse() : route.stops;
+        const latlngs = stops.map(s => [s.lat, s.lng]);
+        
+        // Create animated polyline for navigation route
         this.routeLayer = L.polyline(latlngs, {
             color: 'black',
             weight: 5,
-            opacity: 0.9
+            opacity: 0.9,
+            dashArray: '10, 10'
         }).addTo(this.map);
+
+        // Add animation to the route line
+        this.animateRoute();
+
+        // Add stop markers with distance and ETA
+        let cumulativeDistance = 0;
+        let cumulativeTime = 0;
+        
+        stops.forEach((stop, index) => {
+            // Calculate distance and ETA from start
+            let distance = 0;
+            let eta = 0;
+            
+            if (index > 0) {
+                const prevStop = stops[index - 1];
+                distance = this.calculateDistance(prevStop.lat, prevStop.lng, stop.lat, stop.lng);
+                cumulativeDistance += distance;
+                // Assume average speed of 40 km/h for ETA calculation
+                const segmentTime = (distance / 40) * 60; // minutes
+                cumulativeTime += segmentTime;
+                eta = Math.round(cumulativeTime);
+            }
+            
+            const isTerminal = stop.strong;
+            const marker = L.circleMarker([stop.lat, stop.lng], {
+                radius: isTerminal ? 8 : 5,
+                fillColor: isTerminal ? '#ff0000' : route.color,
+                color: 'white',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(this.map);
+            
+            marker.bindPopup(`
+                <div class="stop-popup">
+                    <h4>${stop.name}</h4>
+                    <p><strong>${isTerminal ? 'Terminal Stop' : 'Bus Stop'}</strong></p>
+                    <div class="stop-stats">
+                        ${index === 0 ? 
+                            '<p><i class="fas fa-play"></i> Starting Point</p>' : 
+                            `<p><i class="fas fa-route"></i> ${cumulativeDistance.toFixed(1)} km from start</p>
+                             <p><i class="fas fa-clock"></i> ETA: ${eta} minutes</p>`
+                        }
+                    </div>
+                </div>
+            `);
+            
+            this.routeStopMarkers.push(marker);
+        });
 
         // Fit the map to the route
         const bounds = L.latLngBounds(latlngs);
         this.map.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    animateRoute() {
+        if (!this.routeLayer) return;
+        
+        let offset = 0;
+        const animate = () => {
+            if (!this.routeLayer) return;
+            
+            offset = (offset + 1) % 20;
+            this.routeLayer.setStyle({
+                dashOffset: offset + 'px'
+            });
+            
+            requestAnimationFrame(animate);
+        };
+        
+        animate();
+    }
+
+    // Calculate distance between two points in kilometers
+    calculateDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371; // Earth's radius in kilometers
+        const dLat = this.toRadians(lat2 - lat1);
+        const dLng = this.toRadians(lng2 - lng1);
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    toRadians(degrees) {
+        return degrees * (Math.PI/180);
+    }
+
+    toggleRouteDirection(routeId) {
+        this.isRouteReversed = !this.isRouteReversed;
+        this.renderStops(routeId);
+        this.viewRouteOnMap(routeId);
+        
+        // Update button text
+        const reverseBtn = document.getElementById('reverseRouteBtn');
+        if (reverseBtn) {
+            reverseBtn.innerHTML = `
+                <i class="fas fa-exchange-alt"></i>
+                ${this.isRouteReversed ? 'Normal Direction' : 'Reverse Route'}
+            `;
+        }
     }
 }
 
