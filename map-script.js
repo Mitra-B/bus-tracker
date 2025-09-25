@@ -9,6 +9,8 @@ class BusTrackerMap {
         this.updateInterval = null;
         this.currentFilter = 'all'; // 'all', 'punbus', 'chalobus'
         this.routeLayer = null; // polyline for selected route
+        this.routeStopMarkers = []; // markers for selected route stops
+        this.osrmCache = new Map(); // cache of routeId -> latlngs
         // Tracking state
         this.trackedBusId = null; // which bus is being tracked
         this.trackLine = null;    // polyline for tracked bus trail
@@ -76,6 +78,7 @@ class BusTrackerMap {
             routeSelect.addEventListener('change', (e) => {
                 const routeId = e.target.value;
                 this.renderStops(routeId);
+                this.viewRouteOnMap(routeId);
             });
         }
         if (viewBtn) {
@@ -192,12 +195,14 @@ class BusTrackerMap {
 
         this.updateUI();
         this.updateBottomNavigation();
-        // Populate route UI and render default route stops
+        // Populate route UI and render default route stops and path
         this.populateRouteSelect();
         const firstRoute = sampleRoutes[0]?.id;
         if (firstRoute) {
-            document.getElementById('routeSelect').value = firstRoute;
+            const selectEl = document.getElementById('routeSelect');
+            if (selectEl) selectEl.value = firstRoute;
             this.renderStops(firstRoute);
+            this.viewRouteOnMap(firstRoute);
         }
     }
 
@@ -411,6 +416,130 @@ class BusTrackerMap {
         } else {
             punbusNav.classList.add('chalobus-inactive');
         }
+    }
+
+    // ---------------- Route UI helpers ----------------
+    populateRouteSelect() {
+        const select = document.getElementById('routeSelect');
+        if (!select) return;
+        select.innerHTML = '';
+        this.routes.forEach((route, id) => {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = route.name;
+            select.appendChild(opt);
+        });
+    }
+
+    renderStops(routeId) {
+        const panel = document.getElementById('stopList');
+        if (!panel) return;
+        panel.innerHTML = '';
+        const route = this.routes.get(routeId);
+        if (!route || !route.stops) return;
+        route.stops.forEach((stop) => {
+            const item = document.createElement('div');
+            item.className = 'stop-item';
+            item.innerHTML = `
+                <div class="stop-dot" style="box-shadow: 0 0 0 1px ${route.color}"></div>
+                <div class="stop-line" style="background:${route.color}"></div>
+                <div class="stop-name ${stop.strong ? 'strong' : ''}">${stop.name}</div>
+            `;
+            item.addEventListener('click', () => this.centerOnStop(stop));
+            panel.appendChild(item);
+        });
+    }
+
+    centerOnStop(stop) {
+        if (!stop) return;
+        this.map.setView([stop.lat, stop.lng], 15);
+    }
+
+    async viewRouteOnMap(routeId) {
+        const route = this.routes.get(routeId);
+        if (!route || !route.stops || route.stops.length < 2) return;
+        await this.drawRoutePolyline(route);
+        const latlngs = route.stops.map(s => [s.lat, s.lng]);
+        const bounds = L.latLngBounds(latlngs);
+        this.map.fitBounds(bounds, { padding: [20, 20] });
+    }
+
+    async drawRoutePolyline(route) {
+        // Use cached geometry if available
+        if (route.cachedLine && route.cachedLine.length) {
+            this._setRouteLayer(route.cachedLine, route.color);
+            return;
+        }
+
+        const latlngs = route.stops.map(s => [s.lat, s.lng]);
+        // Try to build route by chaining OSRM calls between consecutive stops
+        let combined = [];
+        try {
+            for (let i = 0; i < latlngs.length - 1; i++) {
+                const a = latlngs[i];
+                const b = latlngs[i + 1];
+                const seg = await this._osrmRouteBetween(a, b);
+                if (seg && seg.length) {
+                    if (combined.length) {
+                        // avoid duplicating the connecting point
+                        combined = combined.concat(seg.slice(1));
+                    } else {
+                        combined = seg.slice();
+                    }
+                } else {
+                    // fallback straight line for that segment
+                    if (combined.length) {
+                        combined.push(b);
+                    } else {
+                        combined.push(a, b);
+                    }
+                }
+                // small delay to avoid OSRM rate-limiting
+                await this._sleep(180);
+            }
+        } catch (e) {
+            console.warn('Pairwise OSRM failed, fallback to straight segments', e);
+            combined = latlngs;
+        }
+
+        // Cache and draw
+        route.cachedLine = combined && combined.length ? combined : latlngs;
+        this._setRouteLayer(route.cachedLine, route.color);
+    }
+
+    async _osrmRouteBetween(a, b) {
+        // a and b are [lat, lng]
+        const key = `${a[0].toFixed(5)},${a[1].toFixed(5)}->${b[0].toFixed(5)},${b[1].toFixed(5)}`;
+        if (this.osrmCache.has(key)) return this.osrmCache.get(key);
+        const url = `https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson&steps=false&alternatives=false`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const coords = data?.routes?.[0]?.geometry?.coordinates;
+        if (!coords || !coords.length) return null;
+        const line = coords.map(([lng, lat]) => [lat, lng]);
+        this.osrmCache.set(key, line);
+        return line;
+    }
+
+    _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    _setRouteLayer(latlngs, color) {
+        if (this.routeLayer) {
+            this.map.removeLayer(this.routeLayer);
+        }
+        // clear previous stop markers
+        if (this.routeStopMarkers && this.routeStopMarkers.length) {
+            this.routeStopMarkers.forEach(m => this.map.removeLayer(m));
+            this.routeStopMarkers = [];
+        }
+        this.routeLayer = L.polyline(latlngs, { color, weight: 5, opacity: 0.9, lineJoin: 'round', lineCap: 'round', className: 'route-polyline' }).addTo(this.map);
+        // add tiny markers for stops
+        latlngs.forEach(ll => {
+            const m = L.circleMarker(ll, { radius: 4, color: '#fff', fillColor: color, fillOpacity: 1, weight: 2 });
+            m.addTo(this.map);
+            this.routeStopMarkers.push(m);
+        });
     }
 
     simulateBusMovement() {
