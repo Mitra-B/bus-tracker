@@ -27,8 +27,8 @@ class BusTrackerMap {
     }
 
     initMap() {
-        // Initialize Leaflet map centered on a default location (you can change this)
-        this.map = L.map('map').setView([28.6139, 77.2090], 12); // Delhi coordinates
+        // Initialize Leaflet map centered on Punjab, India
+        this.map = L.map('map').setView([30.7333, 76.7794], 10); // Chandigarh, Punjab coordinates
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -94,56 +94,66 @@ class BusTrackerMap {
     }
 
     loadSampleData() {
-        // Sample routes data with stops (Delhi area coordinates)
+        // Sample routes data with stops (Punjab area coordinates)
         const sampleRoutes = [
             { 
                 id: 'R001', 
-                name: 'Route 1: Central Station - Airport', 
+                name: 'Route 1: Chandigarh - Ludhiana', 
                 color: '#e74c3c', 
                 stops: [
-                    { name: 'New Delhi Railway Station', lat: 28.6426, lng: 77.2197, strong: true },
-                    { name: 'Connaught Place', lat: 28.6315, lng: 77.2167 },
-                    { name: 'India Gate', lat: 28.6129, lng: 77.2295 },
-                    { name: 'Ashoka Road', lat: 28.6156, lng: 77.2080 },
-                    { name: 'Dhaula Kuan', lat: 28.5921, lng: 77.1655 },
-                    { name: 'Mahipalpur', lat: 28.5450, lng: 77.1235 },
-                    { name: 'IGI Airport T3', lat: 28.5562, lng: 77.1000, strong: true }
+                    { name: 'Chandigarh Bus Stand', lat: 30.7333, lng: 76.7794, strong: true },
+                    { name: 'Sector 17', lat: 30.7410, lng: 76.7820 },
+                    { name: 'Panchkula', lat: 30.6942, lng: 76.8606 },
+                    { name: 'Ambala Cantt', lat: 30.3752, lng: 76.7821 },
+                    { name: 'Rajpura', lat: 30.4844, lng: 76.5944 },
+                    { name: 'Sirhind', lat: 30.6431, lng: 76.3828 },
+                    { name: 'Khanna', lat: 30.7058, lng: 76.2219 },
+                    { name: 'Doraha', lat: 30.7975, lng: 76.0219 },
+                    { name: 'Ludhiana Bus Stand', lat: 30.9010, lng: 75.8573, strong: true }
                 ] 
             },
             { 
                 id: 'R002', 
-                name: 'Route 2: Mall - University', 
+                name: 'Route 2: Amritsar - Jalandhar', 
                 color: '#3498db', 
                 stops: [
-                    { name: 'Select Citywalk Mall', lat: 28.5286, lng: 77.2193, strong: true },
-                    { name: 'Malviya Nagar', lat: 28.5362, lng: 77.2100 },
-                    { name: 'Hauz Khas', lat: 28.5494, lng: 77.2010 },
-                    { name: 'AIIMS', lat: 28.5672, lng: 77.2100 },
-                    { name: 'IIT Delhi', lat: 28.5450, lng: 77.1926, strong: true }
+                    { name: 'Golden Temple Complex', lat: 31.6200, lng: 74.8765, strong: true },
+                    { name: 'Amritsar Railway Station', lat: 31.6340, lng: 74.8723 },
+                    { name: 'Tarn Taran', lat: 31.4515, lng: 74.9289 },
+                    { name: 'Goindwal Sahib', lat: 31.3204, lng: 75.1608 },
+                    { name: 'Khadur Sahib', lat: 31.2779, lng: 75.2708 },
+                    { name: 'Kapurthala', lat: 31.3800, lng: 75.3800 },
+                    { name: 'Sultanpur Lodhi', lat: 31.2254, lng: 75.2047 },
+                    { name: 'Phillaur', lat: 31.0186, lng: 75.7781 },
+                    { name: 'Jalandhar City', lat: 31.3260, lng: 75.5762, strong: true }
                 ] 
             },
             { 
                 id: 'R003', 
-                name: 'Route 3: Hospital - Tech Park', 
+                name: 'Route 3: Patiala - Bathinda', 
                 color: '#2ecc71', 
                 stops: [
-                    { name: 'Safdarjung Hospital', lat: 28.5675, lng: 77.2107, strong: true },
-                    { name: 'Green Park', lat: 28.5580, lng: 77.2050 },
-                    { name: 'Munirka', lat: 28.5540, lng: 77.1747 },
-                    { name: 'Vasant Vihar', lat: 28.5627, lng: 77.1570 },
-                    { name: 'DLF Cyber City', lat: 28.4946, lng: 77.0910, strong: true }
+                    { name: 'Patiala Bus Stand', lat: 30.3398, lng: 76.3869, strong: true },
+                    { name: 'Rajpura Junction', lat: 30.4844, lng: 76.5944 },
+                    { name: 'Samana', lat: 30.1439, lng: 76.1928 },
+                    { name: 'Patran', lat: 30.0333, lng: 76.2500 },
+                    { name: 'Sunam', lat: 30.1281, lng: 75.7997 },
+                    { name: 'Dirba', lat: 30.0708, lng: 75.6042 },
+                    { name: 'Sangrur', lat: 30.2458, lng: 75.8421 },
+                    { name: 'Lehra Gaga', lat: 30.1500, lng: 75.5667 },
+                    { name: 'Bathinda Junction', lat: 30.2110, lng: 74.9455, strong: true }
                 ] 
             }
         ];
 
-        // Sample buses data - only PUNBUS buses
+        // Sample buses data - PUNBUS buses in Punjab
         const sampleBuses = [
             {
                 id: 'BUS001',
                 number: 'PN-101',
                 route: 'R001',
-                lat: 28.6139,
-                lng: 77.2090,
+                lat: 30.7333,
+                lng: 76.7794,
                 speed: 25,
                 status: 'online',
                 passengers: 15,
@@ -155,8 +165,8 @@ class BusTrackerMap {
                 id: 'BUS002',
                 number: 'PN-201',
                 route: 'R002',
-                lat: 28.6050,
-                lng: 77.2000,
+                lat: 31.6200,
+                lng: 74.8765,
                 speed: 20,
                 status: 'online',
                 passengers: 8,
@@ -168,8 +178,8 @@ class BusTrackerMap {
                 id: 'BUS003',
                 number: 'PN-301',
                 route: 'R003',
-                lat: 28.6250,
-                lng: 77.1950,
+                lat: 30.3398,
+                lng: 76.3869,
                 speed: 35,
                 status: 'online',
                 passengers: 30,
@@ -603,16 +613,60 @@ class BusTrackerMap {
         }
 
         const latlngs = route.stops.map(s => [s.lat, s.lng]);
-        // Draw a black navigating line across route stops
+        
+        // Create animated polyline for navigation route
         this.routeLayer = L.polyline(latlngs, {
             color: 'black',
             weight: 5,
-            opacity: 0.9
+            opacity: 0.9,
+            dashArray: '10, 10'
         }).addTo(this.map);
+
+        // Add animation to the route line
+        this.animateRoute();
+
+        // Add stop markers
+        route.stops.forEach((stop, index) => {
+            const isTerminal = stop.strong;
+            const marker = L.circleMarker([stop.lat, stop.lng], {
+                radius: isTerminal ? 8 : 5,
+                fillColor: isTerminal ? '#ff0000' : route.color,
+                color: 'white',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(this.map);
+            
+            marker.bindPopup(`
+                <div class="stop-popup">
+                    <h4>Stop ${index + 1}</h4>
+                    <p><strong>${stop.name}</strong></p>
+                    <p>Lat: ${stop.lat.toFixed(4)}, Lng: ${stop.lng.toFixed(4)}</p>
+                </div>
+            `);
+        });
 
         // Fit the map to the route
         const bounds = L.latLngBounds(latlngs);
         this.map.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    animateRoute() {
+        if (!this.routeLayer) return;
+        
+        let offset = 0;
+        const animate = () => {
+            if (!this.routeLayer) return;
+            
+            offset = (offset + 1) % 20;
+            this.routeLayer.setStyle({
+                dashOffset: offset + 'px'
+            });
+            
+            requestAnimationFrame(animate);
+        };
+        
+        animate();
     }
 }
 
