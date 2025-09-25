@@ -9,6 +9,10 @@ class BusTrackerMap {
         this.updateInterval = null;
         this.currentFilter = 'all'; // 'all', 'punbus', 'chalobus'
         this.routeLayer = null; // polyline for selected route
+        // Tracking state
+        this.trackedBusId = null; // which bus is being tracked
+        this.trackLine = null;    // polyline for tracked bus trail
+        this.trackPoints = [];    // recent positions for trail
 
         this.init();
     }
@@ -347,9 +351,33 @@ class BusTrackerMap {
 
     trackBus(busId) {
         const bus = this.buses.get(busId);
-        if (bus) {
-            this.map.setView([bus.lat, bus.lng], 16);
+        if (!bus) return;
+
+        // Toggle tracking if same bus clicked again
+        if (this.trackedBusId === busId) {
+            // Disable tracking
+            this.trackedBusId = null;
+            this.trackPoints = [];
+            if (this.trackLine) {
+                this.map.removeLayer(this.trackLine);
+                this.trackLine = null;
+            }
+            return;
         }
+
+        // Switch tracking to the new bus
+        this.trackedBusId = busId;
+        this.trackPoints = [[bus.lat, bus.lng]];
+        if (this.trackLine) {
+            this.map.removeLayer(this.trackLine);
+            this.trackLine = null;
+        }
+        this.trackLine = L.polyline(this.trackPoints, {
+            color: 'black',
+            weight: 4,
+            opacity: 0.9
+        }).addTo(this.map);
+        this.map.setView([bus.lat, bus.lng], 16);
     }
 
     setActiveNav(navType) {
@@ -441,6 +469,24 @@ class BusTrackerMap {
                 marker.setLatLng([bus.lat, bus.lng]);
                 marker.setPopupContent(this.createBusPopup(bus));
             }
+
+            // Update tracking trail if this bus is being tracked
+            if (this.trackedBusId === id) {
+                // Append point and keep last 200 positions
+                this.trackPoints.push([bus.lat, bus.lng]);
+                if (this.trackPoints.length > 200) this.trackPoints.shift();
+                if (this.trackLine) {
+                    this.trackLine.setLatLngs(this.trackPoints);
+                } else {
+                    this.trackLine = L.polyline(this.trackPoints, {
+                        color: 'black',
+                        weight: 4,
+                        opacity: 0.9
+                    }).addTo(this.map);
+                }
+                // Keep map centered on the tracked bus
+                this.map.setView([bus.lat, bus.lng]);
+            }
         });
     }
 
@@ -508,6 +554,65 @@ class BusTrackerMap {
 
     hideLoading() {
         document.getElementById('loadingOverlay').classList.remove('show');
+    }
+
+    // ===== Route UI helpers =====
+    populateRouteSelect() {
+        const select = document.getElementById('routeSelect');
+        if (!select) return;
+        // Clear
+        select.innerHTML = '';
+        // Add options from routes map
+        Array.from(this.routes.values()).forEach(route => {
+            const opt = document.createElement('option');
+            opt.value = route.id;
+            opt.textContent = route.name;
+            select.appendChild(opt);
+        });
+    }
+
+    renderStops(routeId) {
+        const route = this.routes.get(routeId);
+        const list = document.getElementById('stopList');
+        if (!list) return;
+        list.innerHTML = '';
+        if (!route || !route.stops) return;
+
+        route.stops.forEach((s, idx) => {
+            const item = document.createElement('div');
+            item.className = 'stop-item';
+            item.innerHTML = `
+                <div class="stop-index">${idx + 1}</div>
+                <div class="stop-info">
+                    <div class="stop-name" ${s.strong ? 'style="font-weight:600"' : ''}>${s.name}</div>
+                    <div class="stop-coords">${s.lat.toFixed(4)}, ${s.lng.toFixed(4)}</div>
+                </div>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    viewRouteOnMap(routeId) {
+        const route = this.routes.get(routeId);
+        if (!route || !Array.isArray(route.stops) || route.stops.length < 2) return;
+
+        // Remove previous route layer if exists
+        if (this.routeLayer) {
+            this.map.removeLayer(this.routeLayer);
+            this.routeLayer = null;
+        }
+
+        const latlngs = route.stops.map(s => [s.lat, s.lng]);
+        // Draw a black navigating line across route stops
+        this.routeLayer = L.polyline(latlngs, {
+            color: 'black',
+            weight: 5,
+            opacity: 0.9
+        }).addTo(this.map);
+
+        // Fit the map to the route
+        const bounds = L.latLngBounds(latlngs);
+        this.map.fitBounds(bounds, { padding: [30, 30] });
     }
 }
 
