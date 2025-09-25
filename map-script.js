@@ -180,20 +180,8 @@ class BusTrackerMap {
             this.routes.set(route.id, route);
         });
 
-        // Load buses and initialize along-route paths
+        // Load buses
         sampleBuses.forEach(bus => {
-            const route = this.routes.get(bus.route);
-            if (route && Array.isArray(route.stops) && route.stops.length > 1) {
-                // Build path from route stops
-                bus.path = route.stops.map(s => ({ lat: s.lat, lng: s.lng }));
-                bus.segmentIndex = 0; // between stop 0 and 1
-                bus.t = 0; // interpolation progress 0..1 along the segment
-                // Speed factor per tick (update interval ~5s). Tune for demo.
-                bus.speedFactor = 0.35 + Math.random() * 0.25; // 0.35..0.6 per tick
-                // Start at the first stop
-                bus.lat = bus.path[0].lat;
-                bus.lng = bus.path[0].lng;
-            }
             this.buses.set(bus.id, bus);
             this.addBusMarker(bus);
         });
@@ -206,7 +194,6 @@ class BusTrackerMap {
         if (firstRoute) {
             document.getElementById('routeSelect').value = firstRoute;
             this.renderStops(firstRoute);
-            this.viewRouteOnMap(firstRoute);
         }
     }
 
@@ -400,46 +387,27 @@ class BusTrackerMap {
 
     simulateBusMovement() {
         this.buses.forEach((bus, id) => {
-            if (bus.status !== 'online') return;
+            if (bus.status === 'online') {
+                // Simulate small random movement
+                const latChange = (Math.random() - 0.5) * 0.01;
+                const lngChange = (Math.random() - 0.5) * 0.01;
 
-            if (bus.path && bus.path.length > 1) {
-                const seg = bus.segmentIndex ?? 0;
-                const a = bus.path[seg];
-                const b = bus.path[seg + 1];
-                if (a && b) {
-                    // advance progress
-                    const speed = bus.speedFactor || 0.5; // fallback
-                    bus.t = (bus.t ?? 0) + speed; // per tick increment
+                bus.lat += latChange;
+                bus.lng += lngChange;
+                bus.speed = Math.max(0, Math.min(60, bus.speed + (Math.random() - 0.5) * 10));
+                bus.passengers = Math.max(0, Math.min(bus.capacity, bus.passengers + Math.floor((Math.random() - 0.5) * 5)));
 
-                    // move to next segment when completed
-                    while (bus.t >= 1) {
-                        bus.t -= 1;
-                        bus.segmentIndex = (bus.segmentIndex + 1) % (bus.path.length - 1);
-                    }
-
-                    const t = bus.t;
-                    const lat = a.lat + (b.lat - a.lat) * t;
-                    const lng = a.lng + (b.lng - a.lng) * t;
-                    bus.lat = lat;
-                    bus.lng = lng;
-
-                    // derive demo speed km/h roughly from distance per tick
-                    const dLat = b.lat - a.lat;
-                    const dLng = b.lng - a.lng;
-                    const segLen = Math.sqrt(dLat * dLat + dLng * dLng);
-                    bus.speed = Math.round(segLen * 111 * 60); // crude demo conversion
+                // Update last update time randomly for some buses
+                if (Math.random() < 0.3) {
+                    bus.lastUpdate = new Date();
                 }
-            }
 
-            // demo passenger fluctuation
-            bus.passengers = Math.max(0, Math.min(bus.capacity, (bus.passengers ?? 0) + Math.floor((Math.random() - 0.5) * 3)));
-            bus.lastUpdate = new Date();
-
-            // Update marker position
-            const marker = this.markers.get(id);
-            if (marker) {
-                marker.setLatLng([bus.lat, bus.lng]);
-                marker.setPopupContent(this.createBusPopup(bus));
+                // Update marker position
+                const marker = this.markers.get(id);
+                if (marker) {
+                    marker.setLatLng([bus.lat, bus.lng]);
+                    marker.setPopupContent(this.createBusPopup(bus));
+                }
             }
         });
     }
