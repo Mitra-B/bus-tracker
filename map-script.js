@@ -9,6 +9,8 @@ class BusTrackerMap {
         this.updateInterval = null;
         this.currentFilter = 'all'; // 'all', 'punbus', 'chalobus'
         this.routeLayer = null; // polyline for selected route
+        this.routeStopMarkers = []; // store route stop markers for cleanup
+        this.isRouteReversed = false; // track if current route is reversed
         // Tracking state
         this.trackedBusId = null; // which bus is being tracked
         this.trackLine = null;    // polyline for tracked bus trail
@@ -72,9 +74,12 @@ class BusTrackerMap {
         const routeSelect = document.getElementById('routeSelect');
         const viewBtn = document.getElementById('viewRouteOnMapBtn');
         const viewLink = document.getElementById('viewOnMapLink');
+        const reverseBtn = document.getElementById('reverseRouteBtn');
+        
         if (routeSelect) {
             routeSelect.addEventListener('change', (e) => {
                 const routeId = e.target.value;
+                this.isRouteReversed = false; // reset reverse state
                 this.renderStops(routeId);
             });
         }
@@ -89,6 +94,12 @@ class BusTrackerMap {
                 e.preventDefault();
                 const routeId = routeSelect.value;
                 this.viewRouteOnMap(routeId);
+            });
+        }
+        if (reverseBtn) {
+            reverseBtn.addEventListener('click', () => {
+                const routeId = routeSelect.value;
+                this.toggleRouteDirection(routeId);
             });
         }
     }
@@ -588,14 +599,34 @@ class BusTrackerMap {
         list.innerHTML = '';
         if (!route || !route.stops) return;
 
-        route.stops.forEach((s, idx) => {
+        const stops = this.isRouteReversed ? [...route.stops].reverse() : route.stops;
+        let cumulativeDistance = 0;
+        let cumulativeTime = 0;
+
+        stops.forEach((s, idx) => {
+            // Calculate distance and ETA from previous stop
+            let distance = 0;
+            let eta = 0;
+            
+            if (idx > 0) {
+                const prevStop = stops[idx - 1];
+                distance = this.calculateDistance(prevStop.lat, prevStop.lng, s.lat, s.lng);
+                cumulativeDistance += distance;
+                // Assume average speed of 40 km/h for ETA calculation
+                const segmentTime = (distance / 40) * 60; // minutes
+                cumulativeTime += segmentTime;
+                eta = Math.round(cumulativeTime);
+            }
+
             const item = document.createElement('div');
             item.className = 'stop-item';
             item.innerHTML = `
-                <div class="stop-index">${idx + 1}</div>
+                <div class="stop-dot">•</div>
                 <div class="stop-info">
                     <div class="stop-name" ${s.strong ? 'style="font-weight:600"' : ''}>${s.name}</div>
-                    <div class="stop-coords">${s.lat.toFixed(4)}, ${s.lng.toFixed(4)}</div>
+                    <div class="stop-details">
+                        ${idx === 0 ? 'Starting Point' : `${distance.toFixed(1)} km • ETA: ${eta} min`}
+                    </div>
                 </div>
             `;
             list.appendChild(item);
@@ -606,13 +637,16 @@ class BusTrackerMap {
         const route = this.routes.get(routeId);
         if (!route || !Array.isArray(route.stops) || route.stops.length < 2) return;
 
-        // Remove previous route layer if exists
+        // Remove previous route layer and markers if exists
         if (this.routeLayer) {
             this.map.removeLayer(this.routeLayer);
             this.routeLayer = null;
         }
+        this.routeStopMarkers.forEach(marker => this.map.removeLayer(marker));
+        this.routeStopMarkers = [];
 
-        const latlngs = route.stops.map(s => [s.lat, s.lng]);
+        const stops = this.isRouteReversed ? [...route.stops].reverse() : route.stops;
+        const latlngs = stops.map(s => [s.lat, s.lng]);
         
         // Create animated polyline for navigation route
         this.routeLayer = L.polyline(latlngs, {
@@ -625,8 +659,25 @@ class BusTrackerMap {
         // Add animation to the route line
         this.animateRoute();
 
-        // Add stop markers
-        route.stops.forEach((stop, index) => {
+        // Add stop markers with distance and ETA
+        let cumulativeDistance = 0;
+        let cumulativeTime = 0;
+        
+        stops.forEach((stop, index) => {
+            // Calculate distance and ETA from start
+            let distance = 0;
+            let eta = 0;
+            
+            if (index > 0) {
+                const prevStop = stops[index - 1];
+                distance = this.calculateDistance(prevStop.lat, prevStop.lng, stop.lat, stop.lng);
+                cumulativeDistance += distance;
+                // Assume average speed of 40 km/h for ETA calculation
+                const segmentTime = (distance / 40) * 60; // minutes
+                cumulativeTime += segmentTime;
+                eta = Math.round(cumulativeTime);
+            }
+            
             const isTerminal = stop.strong;
             const marker = L.circleMarker([stop.lat, stop.lng], {
                 radius: isTerminal ? 8 : 5,
@@ -639,11 +690,19 @@ class BusTrackerMap {
             
             marker.bindPopup(`
                 <div class="stop-popup">
-                    <h4>Stop ${index + 1}</h4>
-                    <p><strong>${stop.name}</strong></p>
-                    <p>Lat: ${stop.lat.toFixed(4)}, Lng: ${stop.lng.toFixed(4)}</p>
+                    <h4>${stop.name}</h4>
+                    <p><strong>${isTerminal ? 'Terminal Stop' : 'Bus Stop'}</strong></p>
+                    <div class="stop-stats">
+                        ${index === 0 ? 
+                            '<p><i class="fas fa-play"></i> Starting Point</p>' : 
+                            `<p><i class="fas fa-route"></i> ${cumulativeDistance.toFixed(1)} km from start</p>
+                             <p><i class="fas fa-clock"></i> ETA: ${eta} minutes</p>`
+                        }
+                    </div>
                 </div>
             `);
+            
+            this.routeStopMarkers.push(marker);
         });
 
         // Fit the map to the route
@@ -667,6 +726,37 @@ class BusTrackerMap {
         };
         
         animate();
+    }
+
+    // Calculate distance between two points in kilometers
+    calculateDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371; // Earth's radius in kilometers
+        const dLat = this.toRadians(lat2 - lat1);
+        const dLng = this.toRadians(lng2 - lng1);
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    toRadians(degrees) {
+        return degrees * (Math.PI/180);
+    }
+
+    toggleRouteDirection(routeId) {
+        this.isRouteReversed = !this.isRouteReversed;
+        this.renderStops(routeId);
+        this.viewRouteOnMap(routeId);
+        
+        // Update button text
+        const reverseBtn = document.getElementById('reverseRouteBtn');
+        if (reverseBtn) {
+            reverseBtn.innerHTML = `
+                <i class="fas fa-exchange-alt"></i>
+                ${this.isRouteReversed ? 'Normal Direction' : 'Reverse Route'}
+            `;
+        }
     }
 }
 
