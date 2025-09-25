@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Tracker - Home</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-bus"></i>
+                    <h1>Bus Tracker</h1>
+                </div>
+                <div class="header-actions">
+                    <a href="map.html" class="btn btn-primary">
+                        <i class="fas fa-map"></i>
+                        View Map
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Welcome Section -->
+        <main class="welcome-section">
+            <div class="welcome-content">
+                <h2>Welcome to Bus Tracker</h2>
+                <p>Real-time bus tracking system for your city</p>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <h3>Live Map</h3>
+                        <p>Track buses in real-time on an interactive map</p>
+                        <a href="map.html" class="btn btn-secondary">View Map</a>
+                    </div>
+
+                    <div class="feature-card">
+                        <i class="fas fa-bus"></i>
+                        <h3>PUNBUS Tracking</h3>
+                        <p>Track PUNBUS services with real-time location updates</p>
+                        <a href="map.html" class="btn btn-secondary">Track PUNBUS</a>
+                    </div>
+
+                    <div class="feature-card">
+                        <i class="fas fa-clock"></i>
+                        <h3>Real-time Updates</h3>
+                        <p>Get live updates on bus locations and status</p>
+                        <a href="map.html" class="btn btn-secondary">See Updates</a>
+                    </div>
+                </div>
+
+                <div class="stats-section">
+                    <div class="stat-item">
+                        <span class="stat-number">3</span>
+                        <span class="stat-label">PUNBUS Routes</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">3</span>
+                        <span class="stat-label">Buses Online</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">24/7</span>
+                        <span class="stat-label">Service</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <i class="fas fa-circle status-online"></i>
+                <span>System Online</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-bus"></i>
+                <span>3 Active Buses</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-clock"></i>
+                <span>Last updated: Just now</span>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation Bar (Mobile) -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" id="homeNav">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </div>
+            <a href="map.html#punbus" class="nav-item punbus-active">
+                <i class="fas fa-bus"></i>
+                <span>PUNBUS</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Scripts -->
+    <script src="home-script.js"></script>
+</body>
+</html>

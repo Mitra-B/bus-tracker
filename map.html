@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Tracker - Live Map</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-bus"></i>
+                    <h1>Bus Tracker</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Map Container -->
+        <div class="map-container">
+            <div class="map-header">
+                <h2><i class="fas fa-map-marked-alt"></i> Live Bus Tracking</h2>
+                <div class="map-controls">
+                    <div class="route-picker">
+                        <label for="routeSelect" class="route-label">Route:</label>
+                        <select id="routeSelect" class="route-select"></select>
+                        <button class="btn btn-secondary" id="viewRouteOnMapBtn">
+                            <i class="fas fa-map"></i>
+                            View Route
+                        </button>
+                    </div>
+                    <button class="btn btn-secondary" id="centerMapBtn">
+                        <i class="fas fa-crosshairs"></i>
+                        Center Map
+                    </button>
+                    <button class="btn btn-secondary" id="toggleTrafficBtn">
+                        <i class="fas fa-traffic-light"></i>
+                        Traffic
+                    </button>
+                </div>
+            </div>
+            <div id="map" class="map"></div>
+
+            <!-- Bus Info Panel -->
+            <div class="bus-info-panel" id="busInfoPanel">
+                <div class="panel-header">
+                    <h4>Bus Information</h4>
+                    <button class="close-btn" id="closePanelBtn">&times;</button>
+                </div>
+                <div class="panel-content" id="panelContent">
+                    <p>Select a bus to view details</p>
+                </div>
+            </div>
+
+            <!-- Route Stops Panel -->
+            <aside class="route-stops-panel" id="routeStopsPanel">
+                <div class="rsp-header">
+                    <a href="#" id="viewOnMapLink">View on Map <i class="fas fa-external-link-alt"></i></a>
+                </div>
+                <div class="stop-list" id="stopList">
+                    <!-- Stops rendered by JS -->
+                </div>
+            </aside>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <i class="fas fa-circle status-online"></i>
+                <span>System Online</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-bus"></i>
+                <span id="activeBusCount">0 Active Buses</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-clock"></i>
+                <span id="lastUpdate">Last updated: Never</span>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation Bar (Mobile) -->
+        <nav class="bottom-nav">
+            <a href="index.html" class="nav-item">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </a>
+            <div class="nav-item active punbus-active" id="punbusNav">
+                <i class="fas fa-bus"></i>
+                <span>PUNBUS</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-bus fa-spin"></i>
+            <p>Loading bus data...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="map-script.js"></script>
+</body>
+</html>
