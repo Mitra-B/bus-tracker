@@ -302,6 +302,21 @@ body {
     color: #333;
 }
 
+.stop-item .stop-dot.bus-here {
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border: 2px solid currentColor; /* uses inline color from JS */
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.stop-item .stop-dot.bus-here i {
+    font-size: 11px;
+    line-height: 1;
+    color: currentColor;
+}
+
 .stop-item .stop-line {
     position: absolute;
     left: 10px; /* aligns under dot center */
@@ -444,6 +459,77 @@ body {
 
 .panel-content {
     padding: 1rem;
+}
+
+/* Modal Overlay (Routes & Stops on Home) */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+    width: 90%;
+    max-width: 900px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: #fff;
+}
+
+.modal-body {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 16px;
+    padding: 16px;
+    overflow: hidden;
+}
+
+.modal-col {
+    background: rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 12px;
+    padding: 12px;
+    overflow: auto;
+}
+
+/* Make route list items clickable distinctly in modal */
+#routesListHome .route-item {
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .modal {
+        width: 95%;
+        max-height: 85vh;
+    }
+    .modal-body {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Status Bar */
@@ -695,6 +781,7 @@ body {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-align: center;
 }
 
 .feature-card:hover {
@@ -719,6 +806,13 @@ body {
     color: #7f8c8d;
     margin-bottom: 1.5rem;
     line-height: 1.6;
+}
+
+/* Center action buttons/links inside feature cards */
+.feature-card .btn {
+    display: inline-flex;
+    justify-content: center;
+    margin: 0 auto;
 }
 
 /* Stats Section */

@@ -52,6 +52,12 @@
                         <p>Get live updates on bus locations and status</p>
                         <a href="map.html" class="btn btn-secondary">See Updates</a>
                     </div>
+                    <div class="feature-card" id="routesCard">
+                        <i class="fas fa-route"></i>
+                        <h3>Routes & Stops</h3>
+                        <p>Browse all routes and view their stops</p>
+                        <a href="#" class="btn btn-secondary" id="browseRoutesBtn">Browse Routes</a>
+                    </div>
                 </div>
 
                 <div class="stats-section">
@@ -102,5 +108,30 @@
 
     <!-- Scripts -->
     <script src="home-script.js"></script>
+    
+    <!-- Routes & Stops Modal -->
+    <div id="routesModal" class="modal-overlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="routesModalTitle">
+            <div class="modal-header">
+                <h3 id="routesModalTitle"><i class="fas fa-route"></i> Routes & Stops</h3>
+                <div class="modal-actions">
+                    <button class="btn btn-sm btn-outline" id="homeReverseRouteBtn">
+                        <i class="fas fa-exchange-alt"></i> Reverse Route
+                    </button>
+                    <button class="close-btn" id="closeRoutesModal" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="modal-col">
+                    <h4 style="margin-bottom:8px; color:#2c3e50;">Routes</h4>
+                    <div id="routesListHome"></div>
+                </div>
+                <div class="modal-col">
+                    <h4 style="margin-bottom:8px; color:#2c3e50;">Stops</h4>
+                    <div class="stop-list" id="homeStopList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

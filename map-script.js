@@ -554,6 +554,12 @@ class BusTrackerMap {
             this.updateBottomNavigation();
             this.updateLastUpdateTime();
 
+            // Update route stops panel bus indicator in real-time
+            const routeSelect = document.getElementById('routeSelect');
+            if (routeSelect && routeSelect.value) {
+                this.renderStops(routeSelect.value);
+            }
+
             // Update selected bus info if panel is open
             if (this.selectedBus) {
                 const bus = this.buses.get(this.selectedBus);
@@ -600,37 +606,68 @@ class BusTrackerMap {
         if (!route || !route.stops) return;
 
         const stops = this.isRouteReversed ? [...route.stops].reverse() : route.stops;
+
+        // Choose an active bus for this route (tracked > selected > first online)
+        const activeBus = this.getActiveBusForRoute(routeId);
+        let currentStopIdx = -1;
+        if (activeBus) {
+            // Find nearest stop to the bus for the displayed order
+            let best = Infinity;
+            stops.forEach((st, i) => {
+                const d = this.calculateDistance(activeBus.lat, activeBus.lng, st.lat, st.lng);
+                if (d < best) { best = d; currentStopIdx = i; }
+            });
+        }
+
         let cumulativeDistance = 0;
         let cumulativeTime = 0;
 
         stops.forEach((s, idx) => {
-            // Calculate distance and ETA from previous stop
-            let distance = 0;
-            let eta = 0;
-            
+            // Calculate segment distance and accumulate totals
             if (idx > 0) {
                 const prevStop = stops[idx - 1];
-                distance = this.calculateDistance(prevStop.lat, prevStop.lng, s.lat, s.lng);
-                cumulativeDistance += distance;
-                // Assume average speed of 40 km/h for ETA calculation
-                const segmentTime = (distance / 40) * 60; // minutes
+                const segDist = this.calculateDistance(prevStop.lat, prevStop.lng, s.lat, s.lng);
+                cumulativeDistance += segDist;
+                const segmentTime = (segDist / 40) * 60; // minutes at 40 km/h
                 cumulativeTime += segmentTime;
-                eta = Math.round(cumulativeTime);
             }
+
+            const isCurrent = idx === currentStopIdx;
+            const dotClass = `stop-dot${isCurrent ? ' bus-here' : ''}`;
+            const dotInner = isCurrent ? '<i class="fas fa-bus"></i>' : '•';
+            const dotStyle = isCurrent ? `style="color:${route.color}"` : '';
 
             const item = document.createElement('div');
             item.className = 'stop-item';
             item.innerHTML = `
-                <div class="stop-dot">•</div>
+                <div class="${dotClass}" ${dotStyle}>${dotInner}</div>
+                <div class="stop-line" style="background:${route.color}"></div>
                 <div class="stop-info">
                     <div class="stop-name" ${s.strong ? 'style="font-weight:600"' : ''}>${s.name}</div>
                     <div class="stop-details">
-                        ${idx === 0 ? 'Starting Point' : `${distance.toFixed(1)} km • ETA: ${eta} min`}
+                        ${idx === 0 ? 'Starting Point' : `${cumulativeDistance.toFixed(1)} km from start • ETA: ${Math.round(cumulativeTime)} min`}
                     </div>
                 </div>
             `;
+            // Center map when clicking a stop
+            item.addEventListener('click', () => this.centerOnStop(s));
             list.appendChild(item);
         });
+    }
+
+    getActiveBusForRoute(routeId) {
+        if (this.trackedBusId) {
+            const b = this.buses.get(this.trackedBusId);
+            if (b && b.route === routeId) return b;
+        }
+        if (this.selectedBus) {
+            const b = this.buses.get(this.selectedBus);
+            if (b && b.route === routeId) return b;
+        }
+        for (const b of this.buses.values()) {
+            if (b.route === routeId && b.status === 'online') return b;
+        }
+        return null;
     }
 
     viewRouteOnMap(routeId) {
